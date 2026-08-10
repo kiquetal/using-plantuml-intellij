@@ -18,6 +18,7 @@ Clone this repo and replace the domain with your own system.
 | `c4_3_component.puml` | Level 3 — Component | Zoom into one container (Order Service): internal modules |
 | `c4_4_code.puml` | Level 4 — Code | Class/interface diagram of the Order domain model |
 | `c4_5_deployment.puml` | Deployment | Infrastructure: K8s cluster, Istio mesh, Envoy sidecars, pods |
+| `c4_6_dynamic.puml` | Dynamic | Sequence-like flow: order placement interaction across containers |
 | `docs/c4-levels-guide.md` | Reference | C4 theory, when to use each level, tips and common mistakes |
 
 ## How to Render

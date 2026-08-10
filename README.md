@@ -21,6 +21,20 @@ Clone this repo and replace the domain with your own system.
 | `c4_6_dynamic.puml` | Dynamic | Sequence-like flow: order placement interaction across containers |
 | `docs/c4-levels-guide.md` | Reference | C4 theory, when to use each level, tips and common mistakes |
 
+## Diagram Previews
+
+### Level 1 — System Context
+![System Context](images/c4_1_context.png)
+
+### Level 2 — Container
+![Container](images/c4_2_container.png)
+
+### Level 3 — Component
+![Component](images/c4_3_component.png)
+
+### Level 5 — Deployment
+![Deployment](images/c4_5_deployment.png)
+
 ## How to Render
 
 1. Open any `.puml` file in IntelliJ

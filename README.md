@@ -54,6 +54,36 @@ Available includes:
 
 For the full macro reference, see the [C4-PlantUML README](https://github.com/plantuml-stdlib/C4-PlantUML).
 
+## Architecture Decision Records (ADRs)
+
+Document key architectural decisions in `docs/adr/` using plain Markdown (no special tooling needed). Each ADR captures **why** a decision was made, not just what was chosen.
+
+Suggested template (`docs/adr/000-template.md`):
+
+```
+# [short title]
+
+## Status
+[Proposed | Accepted | Deprecated | Superseded by ADR-XXX]
+
+## Context
+What is the problem or force driving this decision?
+
+## Decision
+What did we decide?
+
+## Consequences
+What are the tradeoffs? What becomes easier, what becomes harder?
+```
+
+Example ADRs for this domain:
+- `001-api-gateway-choice.md` — Why Kong over Envoy Gateway or AWS API Gateway
+- `002-sync-vs-async-order-flow.md` — Why payment is synchronous but notifications are async via Kafka
+- `003-single-postgres-vs-db-per-service.md` — Shared DB tradeoff and path to decomposition
+- `004-event-schema-evolution.md` — How Kafka schema changes avoid breaking consumers
+
+> **Why plain Markdown?** ADRs live next to code, are reviewed in PRs, and should be readable without any rendering tool. ASCII + Markdown keeps them portable and diff-friendly.
+
 ## Learn More
 
 - [docs/c4-levels-guide.md](docs/c4-levels-guide.md) — C4 model theory and level-by-level reference

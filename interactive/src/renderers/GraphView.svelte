@@ -14,19 +14,51 @@
 
   // role lookup for edge coloring (edge takes its SOURCE node's role color)
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
-  const positions = $derived(autoLayout(spec.nodes));
+  const positions = $derived(autoLayout(spec.nodes, spec.groups ?? []));
 
   let nodes = $state([]);
   let edges = $state([]);
 
   // Rebuild flow nodes/edges whenever the spec changes.
   $effect(() => {
-    nodes = spec.nodes.map((n) => ({
+    const memberNodes = spec.nodes.map((n) => ({
       id: n.id,
       data: { label: n.tech ? `${n.label}\n(${n.tech})` : n.label },
       position: positions[n.id] ?? { x: 0, y: 0 },
       style: nodeStyle(n.role),
     }));
+
+    // Group boundary boxes: a background rectangle enclosing each group's
+    // members, drawn behind them with the cluster label. Preserves the
+    // System_Boundary structure from the source C4 file.
+    const NODE_W = 180, NODE_H = 56, PAD = 26;
+    const groupBoxes = (spec.groups ?? [])
+      .map((g) => {
+        const pts = spec.nodes
+          .filter((n) => n.group === g.id)
+          .map((n) => positions[n.id])
+          .filter(Boolean);
+        if (!pts.length) return null;
+        const minX = Math.min(...pts.map((p) => p.x)) - PAD;
+        const minY = Math.min(...pts.map((p) => p.y)) - PAD - 18;
+        const maxX = Math.max(...pts.map((p) => p.x)) + NODE_W + PAD;
+        const maxY = Math.max(...pts.map((p) => p.y)) + NODE_H + PAD;
+        return {
+          id: `group-${g.id}`,
+          data: { label: g.label },
+          position: { x: minX, y: minY },
+          style: `width:${maxX - minX}px;height:${maxY - minY}px;` +
+                 `background:rgba(100,116,139,0.06);border:1.5px dashed #94a3b8;` +
+                 `border-radius:12px;color:#475569;font-size:12px;font-weight:700;` +
+                 `text-align:left;padding:4px 8px;`,
+          selectable: false,
+          draggable: false,
+          zIndex: -1,
+        };
+      })
+      .filter(Boolean);
+
+    nodes = [...groupBoxes, ...memberNodes];
     edges = spec.edges.map((e, i) => ({
       id: `e${i}-${e.from}-${e.to}`,
       source: e.from,

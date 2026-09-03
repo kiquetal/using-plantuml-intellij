@@ -1,0 +1,25 @@
+{
+  "title": "Auth Flow (5 actors)",
+  "nodes": [
+    { "id": "user", "label": "User", "role": "person" },
+    { "id": "gateway", "label": "API Gateway", "role": "edge", "tech": "Envoy" },
+    { "id": "auth", "label": "Auth Service", "role": "service" },
+    { "id": "session", "label": "Session Store", "role": "data", "tech": "Redis" },
+    { "id": "idp", "label": "Identity Provider", "role": "external" }
+  ],
+  "edges": [
+    { "from": "user", "to": "gateway", "label": "GET /login" },
+    { "from": "gateway", "to": "auth", "label": "authenticate" },
+    { "from": "auth", "to": "idp", "label": "OIDC redirect" },
+    { "from": "auth", "to": "session", "label": "store token" }
+  ],
+  "flow": [
+    { "from": "user", "to": "gateway", "label": "GET /login", "note": "User hits the login endpoint." },
+    { "from": "gateway", "to": "auth", "label": "forward auth request", "note": "Gateway routes to the Auth Service." },
+    { "from": "auth", "to": "idp", "label": "redirect to OIDC provider", "note": "Auth Service delegates to the external IdP." },
+    { "from": "idp", "to": "auth", "label": "authorization code", "kind": "return", "note": "IdP returns an auth code." },
+    { "from": "auth", "to": "session", "label": "SET session token", "note": "Token persisted to the session store." },
+    { "from": "auth", "to": "gateway", "label": "302 + session cookie", "kind": "return", "note": "Auth responds with a session cookie." },
+    { "from": "gateway", "to": "user", "label": "302 Redirect (logged in)", "kind": "return", "note": "User is authenticated." }
+  ]
+}

@@ -24,11 +24,48 @@ const X0 = 40;
 const Y0 = 20;
 
 /**
- * Assign { x, y } positions to nodes, grouped into tiers by role.
+ * Assign { x, y } positions to nodes. If nodes carry `group` (from C4
+ * boundaries), lay each group out as a vertical stack in its own column band,
+ * with ungrouped nodes (people, external systems) in flanking columns. This
+ * preserves the cluster structure of the source diagram. Falls back to
+ * role-tiering when there are no groups.
  * @param {import('./spec.js').SpecNode[]} nodes
+ * @param {{id:string,label:string}[]} [groups]
  * @returns {Record<string, {x:number, y:number}>} id -> position
  */
-export function autoLayout(nodes) {
+export function autoLayout(nodes, groups = []) {
+  const hasGroups = groups.length > 0 && nodes.some((n) => n.group);
+  if (!hasGroups) return tierLayout(nodes);
+
+  const positions = {};
+  const GROUP_GAP = 320;   // horizontal space per group band
+  const NODE_GAP = 140;    // vertical space between nodes in a group
+  const TOP = 70;          // leave room for group label
+
+  // Column order: ungrouped "person" first, then each group, then ungrouped externals.
+  const persons = nodes.filter((n) => !n.group && n.role === 'person');
+  const externals = nodes.filter((n) => !n.group && n.role !== 'person');
+
+  let col = 0;
+  // people column
+  persons.forEach((n, i) => { positions[n.id] = { x: X0 + col * GROUP_GAP, y: TOP + i * NODE_GAP }; });
+  if (persons.length) col += 1;
+
+  // one band per group
+  for (const g of groups) {
+    const members = nodes.filter((n) => n.group === g.id);
+    members.forEach((n, i) => { positions[n.id] = { x: X0 + col * GROUP_GAP, y: TOP + i * NODE_GAP }; });
+    col += 1;
+  }
+
+  // trailing externals column
+  externals.forEach((n, i) => { positions[n.id] = { x: X0 + col * GROUP_GAP, y: TOP + i * NODE_GAP }; });
+
+  return positions;
+}
+
+/** Original role-tiered layout (used when there are no group boundaries). */
+function tierLayout(nodes) {
   // Bucket nodes by tier.
   const tiers = {};
   for (const n of nodes) {

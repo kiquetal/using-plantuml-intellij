@@ -45,9 +45,14 @@ function roleFor(macro, alias, label) {
   if (m.includes('_ext') || m.startsWith('system')) return 'external';
 
   const hay = `${alias} ${label}`.toLowerCase();
-  if (/gateway|api[_\s-]?gw|ingress|proxy|edge|kong|envoy/.test(hay)) return 'edge';
-  if (/kafka|queue|broker|event|bus|rabbit|sqs|sns|pubsub/.test(hay)) return 'async';
-  if (/postgres|mysql|redis|mongo|dynamo|cache|db|database|store/.test(hay)) return 'data';
+  // Explicit gateway wording wins first (KrakenD, Kong, "API Gateway", ingress).
+  if (/api[_\s-]?gateway|gateway|api[_\s-]?gw|ingress|krakend|kong|apigee|traefik|\bgw\b/.test(hay)) return 'edge';
+  // Messaging.
+  if (/kafka|rabbit|sqs|sns|pubsub|nats|jetstream|event bus|message broker/.test(hay)) return 'async';
+  // Datastores.
+  if (/postgres|mysql|redis|mongo|dynamo|neo4j|cassandra|elastic|\bcache\b|\bdb\b|database|graph db/.test(hay)) return 'data';
+  // Sidecars/proxies are data-plane services, not the edge gateway.
+  if (/sidecar|envoy|proxy|mesh/.test(hay)) return 'service';
   return 'service';
 }
 
@@ -78,9 +83,11 @@ export function parseC4(source, { asFlow = false } = {}) {
   const nodes = [];
   const edges = [];
   const flow = [];
+  const groups = [];        // { id, label } for each boundary
   const warnings = [];
   let title = 'Imported C4 diagram';
   const seen = new Set();
+  const boundaryStack = []; // ids of currently-open boundaries
 
   const lines = source.split(/\r?\n/);
   for (let raw of lines) {
@@ -90,6 +97,23 @@ export function parseC4(source, { asFlow = false } = {}) {
     // title
     const tm = line.match(/^title\s+(.+)$/i);
     if (tm) { title = tm[1].trim(); continue; }
+
+    // Boundary open: System_Boundary(alias, "Label") {  (brace may be same or next line)
+    const bm = line.match(/^([A-Za-z_]*_?Boundary)\s*\((.*?)\)\s*\{?\s*$/);
+    if (bm) {
+      const bargs = splitArgs(bm[2]);
+      const bid = bargs[0];
+      const blabel = bargs[1] ?? bid;
+      if (bid) {
+        groups.push({ id: bid, label: blabel });
+        boundaryStack.push(bid);
+      }
+      continue;
+    }
+    // A lone opening brace (boundary declared on previous line) — ignore.
+    if (line === '{') continue;
+    // Closing brace pops the current boundary.
+    if (line === '}') { boundaryStack.pop(); continue; }
 
     // Match  Macro(...)  — grab macro name + the paren body.
     const mm = line.match(/^([A-Za-z_]+)\s*\((.*)\)\s*\{?\s*$/);
@@ -108,12 +132,14 @@ export function parseC4(source, { asFlow = false } = {}) {
                      macro.toLowerCase().startsWith('system');
       const tech = noTech ? undefined : third;
       const description = noTech ? third : fourth;
+      const group = boundaryStack[boundaryStack.length - 1];
       nodes.push({
         id: alias,
         label: label ?? alias,
         role: roleFor(macro, alias, label ?? ''),
         ...(tech ? { tech } : {}),
         ...(description ? { description } : {}),
+        ...(group ? { group } : {}),
         ...(macro.includes('_Ext') ? { external: true } : {}),
       });
       continue;
@@ -139,14 +165,8 @@ export function parseC4(source, { asFlow = false } = {}) {
       continue;
     }
 
-    // Boundary wrappers (System_Boundary/Container_Boundary) — flatten: their
-    // children are declared as normal elements on following lines.
-    if (/_Boundary$/.test(macro) || macro === 'Boundary' || macro === 'Enterprise_Boundary') {
-      continue;
-    }
-
     warnings.push(`Unrecognized macro skipped: ${macro}(...)`);
   }
 
-  return { title, nodes, edges, flow, warnings };
+  return { title, nodes, edges, flow, groups, warnings };
 }

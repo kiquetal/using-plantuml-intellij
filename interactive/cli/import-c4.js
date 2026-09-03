@@ -56,6 +56,7 @@ let spec = {
   nodes: parsed.nodes,
   edges: parsed.edges,
   flow: parsed.flow,
+  groups: parsed.groups,
 };
 
 // If --flow and --merge: take structure (nodes/edges) from the container file
@@ -68,6 +69,7 @@ if (args.flow && args.merge) {
     nodes: structure.nodes,
     edges: structure.edges,
     flow: parsed.flow,
+    groups: structure.groups,
   };
   parsed.warnings.push(...structure.warnings.map((w) => `[merge] ${w}`));
 }

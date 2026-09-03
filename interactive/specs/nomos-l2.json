@@ -1,0 +1,132 @@
+{
+  "title": "Container Diagram - Nova Cluster (Level 2)",
+  "nodes": [
+    {
+      "id": "user",
+      "label": "Client web/mobile",
+      "role": "person",
+      "description": "Users of the Nova platform"
+    },
+    {
+      "id": "krakend",
+      "label": "KrakenD",
+      "role": "edge",
+      "tech": "Go",
+      "description": "API Gateway. Validates JWT signature, routes requests.",
+      "group": "nova"
+    },
+    {
+      "id": "envoy",
+      "label": "Envoy Sidecar",
+      "role": "service",
+      "tech": "Istio",
+      "description": "Intercepts requests. Calls ext_authz before forwarding.",
+      "group": "nova"
+    },
+    {
+      "id": "middleware",
+      "label": "nomos-middleware",
+      "role": "service",
+      "tech": "Go / DaemonSet",
+      "description": "Decision engine. Path matching, L1/L2 validations, enrichment cache. Returns ALLOW/DENY.",
+      "group": "nova"
+    },
+    {
+      "id": "apisvc",
+      "label": "API Services",
+      "role": "service",
+      "tech": "Envoy VirtualServices",
+      "description": "Logical service endpoints. Reached only after authorization. Routes to country backend.",
+      "group": "nova"
+    },
+    {
+      "id": "nomos",
+      "label": "Nomos Service (Auth Cluster)",
+      "role": "external",
+      "description": "Centralized rule store. Serves authorization rules from a graph model.",
+      "group": "auth"
+    },
+    {
+      "id": "memento",
+      "label": "Memento (Auth Cluster)",
+      "role": "external",
+      "description": "Stores externalIds + custom attributes",
+      "group": "auth"
+    },
+    {
+      "id": "backend",
+      "label": "Backend Services (Country Cluster)",
+      "role": "external",
+      "description": "Protected microservices (account-svc, billing-svc, etc.)",
+      "external": true
+    },
+    {
+      "id": "idp",
+      "label": "External IDPs (Auth0, KC)",
+      "role": "external",
+      "description": "Issues JWT tokens. Provides enrichment data via /users/me.",
+      "external": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "user",
+      "to": "krakend",
+      "label": "API requests",
+      "async": false
+    },
+    {
+      "from": "krakend",
+      "to": "envoy",
+      "label": "Routes request",
+      "async": false
+    },
+    {
+      "from": "envoy",
+      "to": "middleware",
+      "label": "ext_authz check",
+      "async": false
+    },
+    {
+      "from": "middleware",
+      "to": "nomos",
+      "label": "Resolves rules",
+      "async": false
+    },
+    {
+      "from": "middleware",
+      "to": "idp",
+      "label": "Enrichment calls",
+      "async": false
+    },
+    {
+      "from": "envoy",
+      "to": "apisvc",
+      "label": "Forwards if ALLOW",
+      "async": false
+    },
+    {
+      "from": "apisvc",
+      "to": "backend",
+      "label": "Calls backend",
+      "async": false
+    },
+    {
+      "from": "middleware",
+      "to": "memento",
+      "label": "Returns x-api-key for externalId",
+      "async": false
+    }
+  ],
+  "flow": [],
+  "groups": [
+    {
+      "id": "nova",
+      "label": "Nova Cluster"
+    },
+    {
+      "id": "auth",
+      "label": "Auth Cluster"
+    }
+  ]
+}

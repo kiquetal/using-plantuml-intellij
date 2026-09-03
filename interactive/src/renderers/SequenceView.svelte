@@ -178,9 +178,16 @@
       </defs>
 
       {#each actors as a}
-        <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom} stroke="#cbd5e1" stroke-dasharray="4 4" />
-        <g class:active={activeActors.has(a.id)}>
-          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : colorOf(a.id)} />
+        {@const isActive = activeActors.has(a.id)}
+        <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom}
+              stroke={isActive ? colorOf(a.id) : '#cbd5e1'} stroke-width={isActive ? 1.6 : 1} stroke-dasharray="4 4" />
+        <g class:active={isActive}>
+          <!-- highlight ring (non-destructive: fill stays the actor's real color) -->
+          {#if isActive}
+            <rect x={actorX[a.id] - 70} y={HEAD_Y - 4} width="140" height={HEAD_H + 8} rx="11"
+                  fill="none" stroke="#f59e0b" stroke-width="3" />
+          {/if}
+          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={colorOf(a.id)} />
           <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="15" font-weight="700">{a.label}</text>
         </g>
       {/each}

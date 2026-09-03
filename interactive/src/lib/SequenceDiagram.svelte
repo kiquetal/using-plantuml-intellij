@@ -99,7 +99,8 @@
     }, 1100);
   }
 
-  let canvasEl; // bound to the .canvas element we snapshot for the GIF
+  let canvasEl; // .canvas wrapper (unused for capture)
+  let svgEl;    // the actual SVG we snapshot for the GIF
 
   // Record a GIF: reset, then reveal each step and capture a frame.
   async function record() {
@@ -109,7 +110,7 @@
     recordMsg = 'Recording…';
     try {
       await recordGif({
-        element: canvasEl,
+        element: svgEl,
         steps: total,
         onStep: (i) => { currentStep = i; },
         afterRender: tick,
@@ -161,7 +162,7 @@
   </div>
 
   <div class="canvas" class:ok={mode === 'happy'} class:fail={mode === 'failed'} bind:this={canvasEl}>
-    <svg viewBox={`0 0 ${WIDTH} ${svgHeight}`} width="100%" preserveAspectRatio="xMidYMin meet">
+    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width="100%" preserveAspectRatio="xMidYMin meet">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />

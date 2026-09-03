@@ -56,20 +56,30 @@
       </details>
     {/if}
 
-    <section class="block">
-      <h2>{spec.title}</h2>
-      <h3>Container graph</h3>
-      {#key selected}
-        <GraphView {spec} scope="export-scope-graph" />
-      {/key}
-    </section>
+    {#if spec.view === 'sequence'}
+      <!-- Sequence-only view: just the animated colored sequence. -->
+      <section class="block">
+        <h2>{spec.title}</h2>
+        {#key selected}
+          <SequenceView {spec} />
+        {/key}
+      </section>
+    {:else}
+      <section class="block">
+        <h2>{spec.title}</h2>
+        <h3>Container graph</h3>
+        {#key selected}
+          <GraphView {spec} scope="export-scope-graph" />
+        {/key}
+      </section>
 
-    <section class="block">
-      <h3>Flow — step through &amp; record a GIF</h3>
-      {#key selected}
-        <SequenceView {spec} />
-      {/key}
-    </section>
+      <section class="block">
+        <h3>Flow — step through &amp; record a GIF</h3>
+        {#key selected}
+          <SequenceView {spec} />
+        {/key}
+      </section>
+    {/if}
   {/if}
 </main>
 

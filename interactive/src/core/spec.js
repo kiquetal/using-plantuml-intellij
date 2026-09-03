@@ -82,10 +82,11 @@ export function validateSpec(spec) {
 
   if (spec.flow) {
     for (const s of spec.flow) {
-      if (!ids.has(s.from)) warnings.push(`Flow step references missing node: ${s.from}`);
-      if (!ids.has(s.to)) warnings.push(`Flow step references missing node: ${s.to}`);
+      // Only message steps have from/to; frames, notes, and activation don't.
+      if (s.from && !ids.has(s.from)) warnings.push(`Flow step references missing node: ${s.from}`);
+      if (s.to && !ids.has(s.to)) warnings.push(`Flow step references missing node: ${s.to}`);
     }
   }
 
-  return { spec: { title: spec.title ?? 'Untitled', flow: [], ...spec }, warnings };
+  return { spec: { title: spec.title ?? 'Untitled', view: 'auto', flow: [], ...spec }, warnings };
 }

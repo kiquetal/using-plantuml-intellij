@@ -1,0 +1,184 @@
+{
+  "title": "Imported sequence",
+  "view": "sequence",
+  "nodes": [
+    {
+      "id": "Client",
+      "label": "Client",
+      "role": "person",
+      "color": "#0F2C59"
+    },
+    {
+      "id": "Gateway",
+      "label": "KrakenD Gateway",
+      "role": "edge"
+    },
+    {
+      "id": "Sidecar",
+      "label": "Envoy Sidecar",
+      "role": "service",
+      "group": "box0"
+    },
+    {
+      "id": "Middleware",
+      "label": "Auth Middleware",
+      "role": "service",
+      "group": "box0"
+    },
+    {
+      "id": "Backend",
+      "label": "Billing Service API",
+      "role": "service",
+      "group": "box0"
+    },
+    {
+      "id": "ExtBackend",
+      "label": "External Backend",
+      "role": "external",
+      "color": "#3E4A56"
+    }
+  ],
+  "edges": [],
+  "flow": [
+    {
+      "from": "Client",
+      "to": "Gateway",
+      "label": "HTTP GET /billing (with ID Token)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "from": "Gateway",
+      "to": "Sidecar",
+      "label": "Route to Billing Pod (with X-Target-Service header)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "note",
+      "over": [
+        "Sidecar"
+      ],
+      "label": "Sidecar intercepts inbound request"
+    },
+    {
+      "from": "Sidecar",
+      "to": "Middleware",
+      "label": "Envoy ext_authz HTTP Check",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "note",
+      "over": [
+        "Middleware"
+      ],
+      "label": "Decodes token & validates rules"
+    },
+    {
+      "kind": "frame-start",
+      "frame": "f0",
+      "type": "alt",
+      "label": "Success Flow (Authorized)"
+    },
+    {
+      "from": "Middleware",
+      "to": "Sidecar",
+      "label": "ALLOW 200 OK (with X-Authorized-User)",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "from": "Sidecar",
+      "to": "Backend",
+      "label": "Forward Request (with X-Authorized-User header)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "note",
+      "over": [
+        "Backend"
+      ],
+      "label": "Executes transaction logic"
+    },
+    {
+      "from": "Backend",
+      "to": "ExtBackend",
+      "label": "Outbound charges (HTTPS)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "from": "ExtBackend",
+      "to": "Backend",
+      "label": "Transaction result (HTTPS)",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "from": "Backend",
+      "to": "Sidecar",
+      "label": "Return response payload",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "from": "Sidecar",
+      "to": "Gateway",
+      "label": "Return response payload",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "from": "Gateway",
+      "to": "Client",
+      "label": "200 OK API Response",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "frame-else",
+      "frame": "f0",
+      "label": "Failure Flow (Fail Fast - Unauthorized)"
+    },
+    {
+      "from": "Middleware",
+      "to": "Sidecar",
+      "label": "DENY 403 Forbidden",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "note",
+      "over": [
+        "Sidecar"
+      ],
+      "label": "Sidecar drops request immediately\\n(Fail Fast: Backend API is never hit!)"
+    },
+    {
+      "from": "Sidecar",
+      "to": "Gateway",
+      "label": "HTTP 403 Forbidden (UAEX)",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "from": "Gateway",
+      "to": "Client",
+      "label": "HTTP 403 Forbidden (UAEX)",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "frame-end",
+      "frame": "f0"
+    }
+  ],
+  "groups": [
+    {
+      "id": "box0",
+      "label": "Kubernetes / Istio Service Mesh"
+    }
+  ]
+}

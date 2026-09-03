@@ -8,16 +8,23 @@
   import { tick } from 'svelte';
   import { recordGif } from '../lib/gifRecorder.js';
   import { arrowColor } from '../core/theme.js';
-  import { sequenceOrder } from '../core/layout.js';
 
   let { spec } = $props();
 
-  // Actors = only the nodes that participate in the flow, in role order.
+  // Actors = nodes that appear in the flow (messages or notes), kept in the
+  // spec's declaration order (sequence diagrams are order-sensitive).
   const actors = $derived.by(() => {
     const used = new Set();
-    for (const s of spec.flow ?? []) { used.add(s.from); used.add(s.to); }
-    return sequenceOrder(spec.nodes.filter((n) => used.has(n.id)))
-      .map((n) => ({ id: n.id, label: n.label, role: n.role }));
+    for (const s of spec.flow ?? []) {
+      if (s.from) used.add(s.from);
+      if (s.to) used.add(s.to);
+      if (s.over) for (const o of s.over) used.add(o);
+    }
+    // preserve spec.nodes order; append any implicit ids not declared
+    const ordered = spec.nodes.filter((n) => used.has(n.id));
+    const declared = new Set(ordered.map((n) => n.id));
+    for (const id of used) if (!declared.has(id)) ordered.push({ id, label: id, role: 'service' });
+    return ordered.map((n) => ({ id: n.id, label: n.label, role: n.role }));
   });
 
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
@@ -41,16 +48,56 @@
   let timer = null;
   let svgEl = $state();
 
-  const laidOut = $derived((spec.flow ?? []).map((s, i) => ({ ...s, y: FIRST_MSG_Y + i * ROW_H, idx: i })));
-  const total = $derived(laidOut.length);
-  const visible = $derived(laidOut.slice(0, currentStep));
-  const lifelineBottom = $derived(FIRST_MSG_Y + total * ROW_H + 10);
+  // Assign vertical rows only to items that occupy space (messages + notes).
+  // Frames (alt/loop) are overlays spanning their child rows; activate/
+  // deactivate are metadata that don't consume a row.
+  const layout = $derived.by(() => {
+    const items = spec.flow ?? [];
+    const rows = [];        // renderable rows in reveal order (messages + notes)
+    const frames = [];      // { type, label, startRow, endRow, elses: [{label,row}] }
+    const openFrames = [];
+    let rowIdx = 0;
+    for (const it of items) {
+      if (it.kind === 'frame-start') {
+        openFrames.push({ type: it.type, label: it.label, startRow: rowIdx, endRow: rowIdx, elses: [] });
+      } else if (it.kind === 'frame-else') {
+        const f = openFrames[openFrames.length - 1];
+        if (f) f.elses.push({ label: it.label, row: rowIdx });
+      } else if (it.kind === 'frame-end') {
+        const f = openFrames.pop();
+        if (f) { f.endRow = rowIdx; frames.push(f); }
+      } else if (it.kind === 'activate' || it.kind === 'deactivate') {
+        // metadata only
+      } else {
+        rows.push({ ...it, row: rowIdx, y: FIRST_MSG_Y + rowIdx * ROW_H });
+        rowIdx += 1;
+      }
+    }
+    return { rows, frames, rowCount: rowIdx };
+  });
+
+  const rows = $derived(layout.rows);
+  const total = $derived(rows.length);
+  const visible = $derived(rows.slice(0, currentStep));
+  const lifelineBottom = $derived(FIRST_MSG_Y + layout.rowCount * ROW_H + 10);
   const svgHeight = $derived(lifelineBottom + 20);
+
+  // Frames whose start row is already revealed (draw their box progressively).
+  const visibleFrames = $derived(
+    layout.frames.filter((f) => currentStep > f.startRow),
+  );
+
   const caption = $derived(
     currentStep === 0
       ? 'Press ▶ Play or Next to walk through the flow.'
-      : (laidOut[currentStep - 1].note || laidOut[currentStep - 1].label),
+      : (rows[currentStep - 1]?.note || rows[currentStep - 1]?.label || ''),
   );
+
+  function frameBox(f) {
+    const y1 = FIRST_MSG_Y + f.startRow * ROW_H - 30;
+    const yEnd = FIRST_MSG_Y + Math.min(f.endRow, currentStep) * ROW_H - 10;
+    return { x: 20, y: y1, w: WIDTH - 40, h: Math.max(yEnd - y1, ROW_H) };
+  }
 
   function next() { if (currentStep < total) currentStep += 1; if (currentStep >= total) stop(); }
   function prev() { if (currentStep > 0) currentStep -= 1; }
@@ -92,9 +139,13 @@
     return { x1, xEnd: x2 - dir * 6, dir, mid: (x1 + x2) / 2, self: s.from === s.to };
   }
 
-  const activeActors = $derived(
-    currentStep > 0 ? new Set([laidOut[currentStep - 1].from, laidOut[currentStep - 1].to]) : new Set(),
-  );
+  const activeActors = $derived.by(() => {
+    if (currentStep === 0) return new Set();
+    const r = rows[currentStep - 1];
+    if (!r) return new Set();
+    if (r.over) return new Set(r.over);
+    return new Set([r.from, r.to]);
+  });
 </script>
 
 {#if total === 0}
@@ -127,18 +178,47 @@
         </g>
       {/each}
 
-      {#each visible as s (s.label + s.y)}
-        {@const c = arrowColor(roleById[s.from])}
-        {@const g = arrowGeom(s)}
-        <g class="msg" class:current={s.idx === currentStep - 1}>
-          {#if g.self}
-            <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="13" font-weight="600" fill={c}>{s.label}</text>
-            <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
-          {:else}
-            <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="13" font-weight="600" fill={c}>{s.label}</text>
-            <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
-          {/if}
+      <!-- alt/loop/opt frame boxes (drawn behind messages) -->
+      {#each visibleFrames as f}
+        {@const b = frameBox(f)}
+        <g class="frame">
+          <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="6" fill="rgba(84,153,199,0.05)" stroke="#5499c7" stroke-dasharray="4 3" />
+          <rect x={b.x} y={b.y} width="52" height="18" fill="#5499c7" />
+          <text x={b.x + 26} y={b.y + 13} text-anchor="middle" fill="#fff" font-size="11" font-weight="700">{f.type}</text>
+          {#if f.label}<text x={b.x + 60} y={b.y + 13} font-size="11" font-weight="700" fill="#21618c">{f.label}</text>{/if}
+          {#each f.elses as e}
+            {#if currentStep > e.row}
+              {@const ey = FIRST_MSG_Y + e.row * ROW_H - 30}
+              <line x1={b.x} y1={ey} x2={b.x + b.w} y2={ey} stroke="#5499c7" stroke-dasharray="4 3" />
+              <text x={b.x + 8} y={ey + 13} font-size="11" font-weight="700" fill="#21618c">else {e.label}</text>
+            {/if}
+          {/each}
         </g>
+      {/each}
+
+      {#each visible as s (s.kind + '-' + s.row)}
+        {@const isCurrent = s.row === currentStep - 1}
+        {#if s.over}
+          <!-- note over participant(s) -->
+          {@const xs = s.over.map((o) => actorX[o]).filter((v) => v != null)}
+          {@const nx = (Math.min(...xs) + Math.max(...xs)) / 2}
+          <g class="msg" class:current={isCurrent}>
+            <rect x={nx - 90} y={s.y - 16} width="180" height="30" rx="4" fill="#fff8dc" stroke="#d4ac0d" />
+            <text x={nx} y={s.y + 4} text-anchor="middle" font-size="11" fill="#7a5c00">{s.label}</text>
+          </g>
+        {:else}
+          {@const c = arrowColor(roleById[s.from])}
+          {@const g = arrowGeom(s)}
+          <g class="msg" class:current={isCurrent}>
+            {#if g.self}
+              <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+              <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
+            {:else}
+              <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+              <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
+            {/if}
+          </g>
+        {/if}
       {/each}
     </svg>
   </div>

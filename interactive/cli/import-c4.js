@@ -20,6 +20,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { basename, resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseC4 } from '../src/parsers/c4.js';
+import { parseSequence } from '../src/parsers/sequence.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SPECS_DIR = resolve(__dirname, '..', 'specs');
@@ -29,6 +30,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--flow') args.flow = true;
+    else if (a === '--seq') args.seq = true;
     else if (a === '--name') args.name = argv[++i];
     else if (a === '--merge') args.merge = argv[++i];
     else args._.push(a);
@@ -49,10 +51,16 @@ if (!input) {
 
 const name = args.name ? slug(args.name) : slug(input);
 const source = readFileSync(resolve(input), 'utf8');
-const parsed = parseC4(source, { asFlow: !!args.flow });
+
+// --seq: parse a native PlantUML sequence diagram (respects order, returns,
+// activation, alt/loop frames, notes). Otherwise parse as C4.
+const parsed = args.seq
+  ? parseSequence(source)
+  : parseC4(source, { asFlow: !!args.flow });
 
 let spec = {
   title: parsed.title,
+  ...(parsed.view ? { view: parsed.view } : {}),
   nodes: parsed.nodes,
   edges: parsed.edges,
   flow: parsed.flow,

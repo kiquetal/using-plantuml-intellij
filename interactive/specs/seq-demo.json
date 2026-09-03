@@ -1,0 +1,187 @@
+{
+  "title": "Order Placement — Happy Path",
+  "view": "sequence",
+  "nodes": [
+    {
+      "id": "user",
+      "label": "Customer",
+      "role": "person",
+      "color": "#16A085"
+    },
+    {
+      "id": "gw",
+      "label": "API Gateway",
+      "role": "edge",
+      "color": "#2E86C1"
+    },
+    {
+      "id": "order",
+      "label": "Order Service",
+      "role": "service",
+      "color": "#8E44AD"
+    },
+    {
+      "id": "pay",
+      "label": "Payment Service",
+      "role": "service",
+      "color": "#E67E22"
+    },
+    {
+      "id": "db",
+      "label": "Postgres",
+      "role": "data",
+      "color": "#229954"
+    },
+    {
+      "id": "mq",
+      "label": "Kafka",
+      "role": "async",
+      "color": "#C0392B"
+    }
+  ],
+  "edges": [],
+  "flow": [
+    {
+      "from": "user",
+      "to": "gw",
+      "label": "POST /orders",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "activate",
+      "actor": "gw"
+    },
+    {
+      "from": "gw",
+      "to": "order",
+      "label": "createOrder(cart)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "activate",
+      "actor": "order"
+    },
+    {
+      "kind": "frame-start",
+      "frame": "f0",
+      "type": "group",
+      "label": "Validate & persist"
+    },
+    {
+      "from": "order",
+      "to": "db",
+      "label": "INSERT order (PENDING)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "activate",
+      "actor": "db"
+    },
+    {
+      "from": "db",
+      "to": "order",
+      "label": "orderId",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "deactivate",
+      "actor": "db"
+    },
+    {
+      "kind": "frame-end",
+      "frame": "f0"
+    },
+    {
+      "from": "order",
+      "to": "pay",
+      "label": "charge(orderId, amount)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "activate",
+      "actor": "pay"
+    },
+    {
+      "from": "pay",
+      "to": "order",
+      "label": "paymentConfirmed",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "deactivate",
+      "actor": "pay"
+    },
+    {
+      "kind": "frame-start",
+      "frame": "f1",
+      "type": "alt",
+      "label": "payment succeeded"
+    },
+    {
+      "from": "order",
+      "to": "db",
+      "label": "UPDATE order (CONFIRMED)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "from": "order",
+      "to": "mq",
+      "label": "publish OrderConfirmed",
+      "kind": "async",
+      "self": false
+    },
+    {
+      "kind": "note",
+      "over": [
+        "mq"
+      ],
+      "label": "Async event —\\nno waiting on consumers"
+    },
+    {
+      "kind": "frame-else",
+      "frame": "f1",
+      "label": "payment failed"
+    },
+    {
+      "from": "order",
+      "to": "db",
+      "label": "UPDATE order (FAILED)",
+      "kind": "call",
+      "self": false
+    },
+    {
+      "kind": "frame-end",
+      "frame": "f1"
+    },
+    {
+      "from": "order",
+      "to": "gw",
+      "label": "201 Created / 402 Failed",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "deactivate",
+      "actor": "order"
+    },
+    {
+      "from": "gw",
+      "to": "user",
+      "label": "HTTP response",
+      "kind": "return",
+      "self": false
+    },
+    {
+      "kind": "deactivate",
+      "actor": "gw"
+    }
+  ],
+  "groups": []
+}

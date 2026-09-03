@@ -23,12 +23,12 @@
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
 
   // --- Layout constants ----------------------------------------------------
-  const COL_W = 160;
-  const MARGIN_X = 90;
-  const HEAD_Y = 40;
-  const HEAD_H = 34;
-  const FIRST_MSG_Y = 120;
-  const ROW_H = 54;
+  const COL_W = 190;
+  const MARGIN_X = 110;
+  const HEAD_Y = 44;
+  const HEAD_H = 40;
+  const FIRST_MSG_Y = 140;
+  const ROW_H = 66;
 
   const WIDTH = $derived(MARGIN_X * 2 + COL_W * Math.max(actors.length - 1, 1));
   const actorX = $derived(Object.fromEntries(actors.map((a, i) => [a.id, MARGIN_X + i * COL_W])));
@@ -112,7 +112,7 @@
   </div>
 
   <div class="canvas">
-    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width="100%" preserveAspectRatio="xMidYMin meet">
+    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width={WIDTH} height={svgHeight} style="min-width:{WIDTH}px;display:block;">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
@@ -122,8 +122,8 @@
       {#each actors as a}
         <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom} stroke="#cbd5e1" stroke-dasharray="4 4" />
         <g class:active={activeActors.has(a.id)}>
-          <rect x={actorX[a.id] - 60} y={HEAD_Y} width="120" height={HEAD_H} rx="7" fill={activeActors.has(a.id) ? '#1e293b' : arrowColor(a.role)} />
-          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 4} text-anchor="middle" fill="#fff" font-size="12" font-weight="600">{a.label}</text>
+          <rect x={actorX[a.id] - 75} y={HEAD_Y} width="150" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : arrowColor(a.role)} />
+          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="14" font-weight="600">{a.label}</text>
         </g>
       {/each}
 
@@ -132,11 +132,11 @@
         {@const g = arrowGeom(s)}
         <g class="msg" class:current={s.idx === currentStep - 1}>
           {#if g.self}
-            <text x={actorX[s.from] + 12} y={s.y - 8} text-anchor="start" font-size="11" font-weight="600" fill={c}>{s.label}</text>
-            <path d={`M ${actorX[s.from]} ${s.y} h 24 v 16 h -24`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
+            <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+            <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
           {:else}
-            <text x={g.mid} y={s.y - 8} text-anchor="middle" font-size="11" font-weight="600" fill={c}>{s.label}</text>
-            <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
+            <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+            <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
           {/if}
         </g>
       {/each}

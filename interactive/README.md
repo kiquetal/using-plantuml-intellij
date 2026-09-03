@@ -1,128 +1,160 @@
-# Interactive Architecture (Svelte Flow)
+# Diagram Studio
 
-An interactive, browser-based companion to the static C4 `.puml` diagrams in
-the repo root. Where PlantUML gives you portable, versioned images, this app
-gives you a **live, pan/zoom/clickable** view of the same E-Commerce
-architecture — plus **PNG export** and **animated GIF recording**.
+Turn a **C4-PlantUML** file from *any* project into an **interactive** diagram —
+a pan/zoom/clickable architecture graph plus an animated, step-through sequence
+you can export as PNG or **animated GIF** — all in one unified style.
 
-The two views are complementary: keep the `.puml` files for docs and PRs, use
-this app for demos and walkthroughs.
+This repo is the single home for the tooling. Your other project repos only own
+their `.puml` files; you point the studio at them.
 
-## Stack
+```
+C4 .puml  ──parse──▶  ArchSpec (JSON)  ──render──▶  interactive graph + sequence
+```
 
-- [Svelte 5](https://svelte.dev/) + [Vite](https://vite.dev/)
-- [@xyflow/svelte](https://svelteflow.dev/) — the node/edge graph ("Svelte Flow")
-- [html-to-image](https://github.com/bubkoo/html-to-image) — DOM → PNG snapshots
-- [gif.js](https://github.com/jnordberg/gif.js) — encode frames into an animated GIF
+## Architecture
+
+One stable contract in the middle (`ArchSpec`) decouples *where a diagram comes
+from* from *how it's drawn*. Parsers produce it; renderers consume it; the theme
+styles it. Add a parser or a renderer without touching the other side.
+
+```
+interactive/
+├── src/
+│   ├── core/
+│   │   ├── spec.js        ← the ArchSpec contract + validateSpec()
+│   │   ├── theme.js       ← ONE source of truth: role → color/style
+│   │   └── layout.js      ← auto-position nodes into role-based tiers
+│   ├── parsers/
+│   │   └── c4.js          ← C4-PlantUML macros → ArchSpec
+│   ├── renderers/
+│   │   ├── GraphView.svelte     ← interactive SvelteFlow graph
+│   │   └── SequenceView.svelte  ← animated step-through + GIF recorder
+│   ├── lib/
+│   │   ├── gifRecorder.js       ← frame capture → animated GIF (gif.js)
+│   │   └── DownloadButton.svelte← PNG export
+│   └── App.svelte         ← loads specs/*.json, ?spec= picks one
+├── specs/                 ← generated (or hand-authored) specs, one per project
+│   ├── order-platform.json
+│   └── order-platform-flow.json
+└── cli/
+    └── import-c4.js        ← .puml → specs/<name>.json
+```
+
+**Unified style by construction:** every node is classified into a semantic
+**role** (`edge`, `service`, `data`, `async`, `control`, `external`, `person`).
+The theme colors purely by role, so a "service" looks identical in every
+project. Change `core/theme.js` once → all diagrams restyle.
 
 ## Run it
 
 ```bash
 cd interactive
 npm install
-npm run dev      # http://localhost:5173
+npm run dev            # http://localhost:5173
 ```
 
-Build a static bundle:
+Pick a spec from the dropdown, or open `?spec=order-platform` directly.
+
+## The workflow: import a C4 file from another repo
+
+From this repo, point the CLI at any project's C4 `.puml`:
 
 ```bash
-npm run build    # outputs to interactive/dist
-npm run preview  # serve the built bundle
+# 1. Container diagram → structure (nodes + edges)
+node cli/import-c4.js ~/projects/foo/docs/c4_2_container.puml --name foo
+
+# 2. (optional) Dynamic diagram → animated sequence, merged with the structure
+node cli/import-c4.js ~/projects/foo/docs/c4_6_dynamic.puml \
+    --name foo-flow --flow --merge ~/projects/foo/docs/c4_2_container.puml
+
+# 3. View it
+npm run dev            # then open ?spec=foo  (and ?spec=foo-flow)
 ```
 
-## What's in the app
+That writes `specs/foo.json`. The app auto-discovers it — no code changes.
 
-1. **Container view (C4 Level 2)** — an interactive `<SvelteFlow>` graph of the
-   platform (API Gateway → Order/Payment services → Postgres/Kafka → external
-   Stripe & Notification). Pan, zoom, drag nodes, and **click any box** for a
-   detail popup. Animated edges show request flow; dashed edges are async.
-   The **⬇ PNG** button (top-right of the canvas) exports the graph.
-2. **Order flow (step-through)** — an SVG sequence diagram of the order-placement
-   flow with a **happy vs. failed payment** toggle and Play/Prev/Next/Reset.
-   The **● Record GIF** button turns the walkthrough into a downloadable GIF.
+### CLI flags
 
-## How the animated GIF is created (in code)
+| Flag | Meaning |
+|------|---------|
+| `--name <slug>` | output filename (default: derived from the `.puml` name) |
+| `--flow` | treat ordered `Rel()` as **sequence steps** (for C4 **Dynamic** files) |
+| `--merge <container.puml>` | take nodes/edges from a container file, flow from this one |
 
-A GIF is just a series of still frames. Svelte Flow's animated edges and the
-sequence step-through are *runtime* animations — a single screenshot can't
-capture motion. So we **capture one frame per step** and encode them.
+### What the parser understands
 
-The flow (see [`src/lib/gifRecorder.js`](src/lib/gifRecorder.js)):
+- **Elements:** `Person`, `Person_Ext`, `Container`, `ContainerDb`,
+  `ContainerQueue`, `Component*`, `System`, `System_Ext`, `SystemDb`.
+- **Relations:** `Rel`, `Rel_U/D/L/R` (and `_Up/_Down/…`), `Rel_Back`, `BiRel`.
+- **Ignored safely:** `!include`, `LAYOUT_*()`, boundaries are flattened.
+- Unknown macros are **skipped with a warning**, never a crash. If a macro
+  isn't handled, edit the one line in the generated `specs/<name>.json`.
 
-1. **Advance state** to step `i` (reveal one more message).
-2. **Wait for Svelte to re-render** with `await tick()`.
-3. **Snapshot the DOM** to a PNG data URL with `html-to-image`'s `toPng`.
-4. **Add it as a frame** to a `gif.js` encoder with a per-frame `delay`.
-5. After the last step, **`gif.render()`** encodes everything (in a Web Worker)
-   and hands back a `Blob` we trigger as a download.
+Role inference: `Person*→person`, `*Db→data`, `*Queue→async`,
+`*_Ext/System*→external`, names matching gateway/kong/envoy `→edge`, else
+`service`. Wrong guess? Change the `role` field in the spec JSON.
 
-The core loop, simplified:
+## Hand-authored specs
+
+You don't need a `.puml` — you can write a spec directly. See
+[`src/core/spec.js`](src/core/spec.js) for the shape:
+
+```json
+{
+  "title": "My System",
+  "nodes": [
+    { "id": "gw", "label": "API Gateway", "role": "edge", "tech": "Kong" },
+    { "id": "svc", "label": "My Service", "role": "service" },
+    { "id": "db", "label": "Postgres", "role": "data" }
+  ],
+  "edges": [
+    { "from": "gw", "to": "svc", "label": "REST" },
+    { "from": "svc", "to": "db", "label": "SQL" }
+  ],
+  "flow": [
+    { "from": "gw", "to": "svc", "label": "POST /thing" },
+    { "from": "svc", "to": "db", "label": "INSERT" }
+  ]
+}
+```
+
+Drop it in `specs/`, and it appears in the picker.
+
+## How the animated GIF works (in code)
+
+A GIF is a series of stills. The step-through is a runtime animation, so we
+capture **one frame per step** and encode them (see
+[`src/lib/gifRecorder.js`](src/lib/gifRecorder.js)):
 
 ```js
 import GIF from 'gif.js';
-import gifWorkerUrl from 'gif.js/dist/gif.worker.js?url';
+import gifWorkerUrl from 'gif.js/dist/gif.worker.js?url'; // Vite bundles the worker
 import { toPng } from 'html-to-image';
 
-const gif = new GIF({
-  workers: 2,
-  quality: 10,               // 1–30, lower = better/slower
-  width, height,
-  workerScript: gifWorkerUrl // Vite bundles the worker via ?url
-});
+const gif = new GIF({ workers: 2, quality: 10, width, height, workerScript: gifWorkerUrl });
 
 for (let i = 0; i <= steps; i++) {
-  await onStep(i);           // mutate app state to show step i
-  await afterRender();       // Svelte's tick() — flush the DOM
-  const dataUrl = await toPng(element, { width, height, backgroundColor: '#fff' });
-  const img = await loadImage(dataUrl);
-  gif.addFrame(img, { delay: 900 });   // 900ms per frame
+  await onStep(i);        // reveal one more message
+  await tick();           // let Svelte flush the DOM
+  const url = await toPng(svgEl, { width, height, backgroundColor: '#fff' });
+  gif.addFrame(await loadImage(url), { delay: 900 });
 }
-
-gif.on('finished', (blob) => {         // download when encoding completes
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'order-flow.gif';
-  a.click();
-});
-gif.render();
+gif.on('finished', (blob) => /* download */);
+gif.render();             // encodes in a Web Worker
 ```
 
-The one Vite-specific detail: `gif.js` runs its encoder in a **Web Worker**,
-shipped as a separate `gif.worker.js`. Importing it as `gif.js/dist/gif.worker.js?url`
-lets Vite bundle and hash it, and we pass that URL as `workerScript`. You can
-confirm it's bundled — `npm run build` emits `dist/assets/gif.worker-*.js`.
+The one Vite detail: gif.js runs its encoder in a Web Worker; importing it as
+`gif.js/dist/gif.worker.js?url` lets Vite bundle it (`npm run build` emits
+`dist/assets/gif.worker-*.js`).
 
-In this app, `SequenceDiagram.svelte` wires the button to the helper:
+Other ways to get a GIF (for the *continuously* animated graph edges rather
+than discrete steps): screen-record + `ffmpeg`, a Puppeteer screenshot loop, or
+render PlantUML per-step PNGs and stitch with ImageMagick
+(`convert -delay 90 -loop 0 step_*.png out.gif`).
 
-```js
-await recordGif({
-  element: canvasEl,                 // the SVG canvas to snapshot
-  steps: total,                      // number of messages
-  onStep: (i) => { currentStep = i; },
-  afterRender: tick,
-  delay: 900,
-  filename: `order-flow-${mode}.gif`,
-});
+## Build
+
+```bash
+npm run build     # → dist/
+npm run preview
 ```
-
-### Other ways to get a GIF
-
-| Approach | Best for | Notes |
-|----------|----------|-------|
-| **gif.js in-app** (this app) | discrete step-throughs | deterministic, one click, repeatable |
-| **Screen recorder + ffmpeg** | the continuously animated graph edges | `ffmpeg -i rec.mp4 -vf "fps=15,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" out.gif` |
-| **Puppeteer screenshot loop** | automated/CI capture of continuous motion | drive the running app headlessly, screenshot on an interval, encode with `gifencoder` |
-| **PlantUML per-step PNGs + ImageMagick** | GIFs from the `.puml` side | render each step to PNG, then `convert -delay 90 -loop 0 step_*.png out.gif` |
-
-The in-app gif.js path captures **discrete steps** (perfect for the sequence
-walkthrough). For the *continuously* animated graph edges, a screen recorder or
-Puppeteer captures the smooth motion better.
-
-## Adapt it to your architecture
-
-- **Nodes/edges** live at the top of [`src/App.svelte`](src/App.svelte) — edit
-  the `nodes` and `edges` arrays and the `NODE_HINTS` popup text.
-- **Sequence steps** live in the `steps` array in
-  [`src/lib/SequenceDiagram.svelte`](src/lib/SequenceDiagram.svelte); each entry
-  is `{ from, to, label, kind?, branch?, color?, note }`.
-- **Colors** are defined once per file in a `COLORS` map — recolor there.

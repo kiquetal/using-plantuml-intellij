@@ -188,8 +188,8 @@
 
       {#each visible as s (s.label + s.y)}
         {@const c = s.color ?? COLORS.neutral}
+        {@const g = arrowGeom(s)}
         <g class="msg" class:current={s.idx === currentStep - 1}>
-          {@const g = arrowGeom(s)}
           <text x={g.mid} y={s.y - 8} text-anchor="middle" font-size="11" font-weight="600" fill={c}>
             {s.label}
           </text>

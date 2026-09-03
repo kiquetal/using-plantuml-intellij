@@ -1,0 +1,114 @@
+@startuml sequence_template
+' =====================================================================
+'  REUSABLE SEQUENCE DIAGRAM TEMPLATE (colored)
+'  Copy this file, rename it, and swap the participants + messages.
+'  Everything above the "DIAGRAM" line is style you keep as-is.
+' =====================================================================
+
+' ---------- STYLE BLOCK (reuse verbatim across diagrams) ----------
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam defaultFontSize 13
+skinparam roundcorner 8
+
+skinparam sequence {
+    ArrowColor            #34495E
+    ArrowThickness        1.2
+    ' Vertical lifelines: darker + thicker so the background lines are visible
+    LifeLineBorderColor        #5D6D7E
+    LifeLineBorderThickness    1.4
+    LifeLineBackgroundColor    #EBEDEF
+
+    ' Default participant look (overridden per-participant below)
+    ParticipantBorderColor    #2C3E50
+    ParticipantBackgroundColor #ECF0F1
+    ParticipantFontColor      #FFFFFF
+    ParticipantFontStyle      bold
+
+    ActorBorderColor      #2C3E50
+    ActorBackgroundColor  #16A085
+    ActorFontColor        #1B2631
+
+    ' group / alt box styling
+    GroupBackgroundColor  #EAF2F8
+    GroupBorderColor      #5499C7
+    GroupFontColor        #21618C
+    GroupHeaderFontColor  #21618C
+}
+
+skinparam note {
+    BackgroundColor #FFF8DC
+    BorderColor     #D4AC0D
+}
+
+' ---------- COLOR PALETTE (rename/recolor per your domain) ----------
+' Pattern: give each participant type its own color so roles are obvious.
+'   Actor / user  -> teal      #16A085
+'   Edge / gateway-> blue       #2E86C1
+'   Service       -> purple     #8E44AD
+'   Payment/3rd   -> orange      #E67E22
+'   Datastore     -> green       #229954
+'   Messaging     -> red/pink   #C0392B
+
+' Autonumber every message: 1, 2, 3 ...
+autonumber "0."
+
+' ---------- DIAGRAM BLOCK (this is what you edit) ----------
+
+title Order Placement — Happy Path
+
+' Declare participants with an inline color (#hex after the alias).
+actor        Customer         as user   #16A085
+participant  "API Gateway"    as gw     #2E86C1
+participant  "Order Service"  as order  #8E44AD
+participant  "Payment Service" as pay   #E67E22
+database     "Postgres"       as db     #229954
+queue        "Kafka"          as mq     #C0392B
+
+' -- Basic request/response --
+user  ->  gw    : POST /orders
+activate gw #2E86C1
+gw    ->  order : createOrder(cart)
+activate order #8E44AD
+
+' -- Grouping related steps (colored box) --
+group #EAF2F8 Validate & persist
+    order -> db  : INSERT order (PENDING)
+    activate db #229954
+    db --> order : orderId
+    deactivate db
+end
+
+' -- Synchronous call with return arrow (dashed = response) --
+order -> pay : charge(orderId, amount)
+activate pay #E67E22
+pay --> order : paymentConfirmed
+deactivate pay
+
+' -- Conditional branch (colored alt) --
+alt #FDEDEC payment succeeded
+    order -> db  : UPDATE order (CONFIRMED)
+    order ->> mq : publish OrderConfirmed   ' async fire-and-forget (>>)
+    note right of mq : Async event —\nno waiting on consumers
+else payment failed
+    order -> db  : UPDATE order (FAILED)
+end
+
+order --> gw   : 201 Created / 402 Failed
+deactivate order
+gw    --> user : HTTP response
+deactivate gw
+
+' ---------- LEGEND (optional; documents the palette) ----------
+legend right
+  |= Color |= Role |
+  |<#16A085>   | Actor / user |
+  |<#2E86C1>   | Edge / gateway |
+  |<#8E44AD>   | Service |
+  |<#E67E22>   | Payment / 3rd-party |
+  |<#229954>   | Datastore |
+  |<#C0392B>   | Messaging / queue |
+endlegend
+
+@enduml

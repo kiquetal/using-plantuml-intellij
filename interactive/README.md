@@ -13,6 +13,23 @@ their `.puml` files; you point the studio at them.
 C4 .puml  ──parse──▶  ArchSpec (JSON)  ──render──▶  interactive graph + sequence
 ```
 
+## Previews
+
+Sequence-only views rendered by the app (colored by role, sync/return/async
+arrows, `alt` frames, notes):
+
+### `alt` / `else` frame — `?spec=login-alt`
+![Login with alt frame](images/login-alt.png)
+
+### 8 actors, fits width — `?spec=checkout-8`
+![Checkout saga, 8 actors](images/checkout-8.png)
+
+### Colored order flow — `?spec=seq-demo`
+![Order placement sequence](images/seq-demo.png)
+
+> Regenerate these after changes: start the app (`npm run preview`) and capture
+> `?spec=<name>&step=<n>`, or use `scripts/render-preview.js` for a standalone SVG.
+
 ## Architecture
 
 One stable contract in the middle (`ArchSpec`) decouples *where a diagram comes

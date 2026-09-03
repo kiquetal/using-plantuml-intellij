@@ -7,7 +7,7 @@
   // ---------------------------------------------------------------------------
   import { tick } from 'svelte';
   import { recordGif } from '../lib/gifRecorder.js';
-  import { arrowColor } from '../core/theme.js';
+  import { arrowColor, resolveColors } from '../core/theme.js';
 
   let { spec } = $props();
 
@@ -29,11 +29,9 @@
 
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
 
-  // Color per actor: honor an explicit color from the source (.puml inline
-  // #color) when present, otherwise fall back to the semantic role color.
-  const colorById = $derived(
-    Object.fromEntries(spec.nodes.map((n) => [n.id, n.color || arrowColor(n.role)])),
-  );
+  // Color per actor: explicit node.color wins; otherwise the role color,
+  // varied per same-role sibling so multiple services/datastores differ.
+  const colorById = $derived(resolveColors(spec.nodes));
   const colorOf = (id) => colorById[id] ?? arrowColor(roleById[id]);
 
   // --- Layout constants ----------------------------------------------------

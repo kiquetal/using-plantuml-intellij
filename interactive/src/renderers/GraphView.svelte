@@ -7,14 +7,22 @@
   import { SvelteFlow, Background, Controls, MiniMap } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import DownloadButton from '../lib/DownloadButton.svelte';
-  import { nodeStyle, edgeStyle, legendFor } from '../core/theme.js';
+  import { legendFor, resolveColors } from '../core/theme.js';
   import { autoLayout } from '../core/layout.js';
 
   let { spec, scope = 'export-scope-graph' } = $props();
 
   // role lookup for edge coloring (edge takes its SOURCE node's role color)
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
+  // resolved colors: explicit wins, else role color varied per same-role index
+  const colorById = $derived(resolveColors(spec.nodes));
   const positions = $derived(autoLayout(spec.nodes, spec.groups ?? []));
+
+  // Inline node style from a concrete hex (mirrors theme.nodeStyle).
+  const nodeStyleHex = (bg) =>
+    `background:${bg};color:#fff;border:1px solid rgba(0,0,0,.25);` +
+    `border-radius:10px;padding:8px 10px;font-size:12px;` +
+    `font-weight:600;width:180px;text-align:center;`;
 
   let nodes = $state([]);
   let edges = $state([]);
@@ -25,7 +33,7 @@
       id: n.id,
       data: { label: n.tech ? `${n.label}\n(${n.tech})` : n.label },
       position: positions[n.id] ?? { x: 0, y: 0 },
-      style: nodeStyle(n.role),
+      style: nodeStyleHex(colorById[n.id]),
     }));
 
     // Group boundary boxes: a background rectangle enclosing each group's
@@ -65,7 +73,7 @@
       target: e.to,
       label: e.label,
       animated: !!e.async,
-      style: edgeStyle(roleById[e.from], e.async),
+      style: `stroke:${colorById[e.from]};` + (e.async ? 'stroke-dasharray:5 4;' : ''),
     }));
   });
 

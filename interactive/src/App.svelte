@@ -3,6 +3,7 @@
   import '@xyflow/svelte/dist/style.css';
   import DownloadButton from './lib/DownloadButton.svelte';
   import SequenceDiagram from './lib/SequenceDiagram.svelte';
+  import ProteusMesh from './lib/ProteusMesh.svelte';
 
   // Interactive C4 Level-2 (Container) view of the E-Commerce platform,
   // mirroring c4_2_container.puml: API Gateway, Order/Payment services,
@@ -125,6 +126,17 @@
       <strong>Record GIF</strong> to download an animated walkthrough.
     </p>
     <SequenceDiagram />
+  </section>
+
+  <section class="block">
+    <h2>3. Proteus zero-trust mesh — Dark vs Live</h2>
+    <p class="sub">
+      The SPIRE + Envoy mTLS request flow, shown as two graphs: when
+      <code>service-a</code> is <strong>not admitted</strong> (dark, blocked at
+      the SVID fetch) versus <strong>admitted</strong> (live, mTLS 200). Click a
+      box in the dark graph to see where to act.
+    </p>
+    <ProteusMesh />
   </section>
 </main>
 

@@ -1,0 +1,223 @@
+{
+  "title": "Container Diagram - E-Commerce Order Platform",
+  "nodes": [
+    {
+      "id": "customer",
+      "label": "Customer",
+      "role": "person",
+      "description": "Browses, orders, and tracks via web/mobile."
+    },
+    {
+      "id": "admin",
+      "label": "Platform Admin",
+      "role": "person",
+      "description": "Manages catalog, orders, and support."
+    },
+    {
+      "id": "api_gw",
+      "label": "API Gateway",
+      "role": "edge",
+      "tech": "Kong",
+      "description": "Routes external requests, handles rate limiting, authentication, and SSL termination."
+    },
+    {
+      "id": "order_svc",
+      "label": "Order Service",
+      "role": "service",
+      "tech": "Go",
+      "description": "Manages order lifecycle: creation, validation, status updates, and fulfillment coordination."
+    },
+    {
+      "id": "payment_svc",
+      "label": "Payment Service",
+      "role": "service",
+      "tech": "Java / Spring Boot",
+      "description": "Processes payments via Stripe, handles refunds, and manages payment state."
+    },
+    {
+      "id": "inventory_svc",
+      "label": "Inventory Service",
+      "role": "service",
+      "tech": "Python / FastAPI",
+      "description": "Tracks stock levels, reserves inventory for orders, handles restocking."
+    },
+    {
+      "id": "notification_svc",
+      "label": "Notification Service",
+      "role": "service",
+      "tech": "Node.js / Express",
+      "description": "Sends emails, push notifications, and SMS based on domain events."
+    },
+    {
+      "id": "postgres",
+      "label": "PostgreSQL",
+      "role": "data",
+      "tech": "PostgreSQL 15",
+      "description": "Primary data store for orders, products, customers, and inventory."
+    },
+    {
+      "id": "redis",
+      "label": "Redis Cache",
+      "role": "data",
+      "tech": "Redis 7",
+      "description": "Caches product catalog, session data, and rate-limiting counters. TTL-based eviction."
+    },
+    {
+      "id": "kafka",
+      "label": "Event Bus",
+      "role": "async",
+      "tech": "Apache Kafka",
+      "description": "Async event streaming: order.created, payment.completed, inventory.reserved, shipment.dispatched."
+    },
+    {
+      "id": "stripe",
+      "label": "Stripe",
+      "role": "external",
+      "description": "Payment processing and fraud detection.",
+      "external": true
+    },
+    {
+      "id": "shipco",
+      "label": "ShipCo Logistics",
+      "role": "external",
+      "description": "Shipping, tracking, and delivery.",
+      "external": true
+    },
+    {
+      "id": "sendgrid",
+      "label": "SendGrid",
+      "role": "external",
+      "description": "Transactional email delivery.",
+      "external": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "customer",
+      "to": "api_gw",
+      "label": "Browses and places orders",
+      "async": false
+    },
+    {
+      "from": "admin",
+      "to": "api_gw",
+      "label": "Manages platform",
+      "async": false
+    },
+    {
+      "from": "api_gw",
+      "to": "order_svc",
+      "label": "Routes order requests",
+      "async": false
+    },
+    {
+      "from": "api_gw",
+      "to": "inventory_svc",
+      "label": "Routes catalog/stock queries",
+      "async": false
+    },
+    {
+      "from": "api_gw",
+      "to": "payment_svc",
+      "label": "Routes payment requests",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "payment_svc",
+      "label": "Initiates payment for order",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "inventory_svc",
+      "label": "Reserves stock for order",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "postgres",
+      "label": "Reads/writes orders",
+      "async": false
+    },
+    {
+      "from": "inventory_svc",
+      "to": "postgres",
+      "label": "Reads/writes inventory",
+      "async": false
+    },
+    {
+      "from": "payment_svc",
+      "to": "postgres",
+      "label": "Reads/writes payment records",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "redis",
+      "label": "Caches order status lookups",
+      "async": false
+    },
+    {
+      "from": "inventory_svc",
+      "to": "redis",
+      "label": "Caches product catalog",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "kafka",
+      "label": "Publishes order events",
+      "async": true
+    },
+    {
+      "from": "payment_svc",
+      "to": "kafka",
+      "label": "Publishes payment events",
+      "async": true
+    },
+    {
+      "from": "inventory_svc",
+      "to": "kafka",
+      "label": "Publishes inventory events",
+      "async": true
+    },
+    {
+      "from": "notification_svc",
+      "to": "kafka",
+      "label": "Consumes all domain events",
+      "async": true
+    },
+    {
+      "from": "payment_svc",
+      "to": "stripe",
+      "label": "Charges and refunds",
+      "async": false
+    },
+    {
+      "from": "order_svc",
+      "to": "shipco",
+      "label": "Creates shipments",
+      "async": false
+    },
+    {
+      "from": "notification_svc",
+      "to": "sendgrid",
+      "label": "Sends emails",
+      "async": false
+    },
+    {
+      "from": "stripe",
+      "to": "api_gw",
+      "label": "Payment webhooks",
+      "async": false
+    },
+    {
+      "from": "shipco",
+      "to": "api_gw",
+      "label": "Delivery webhooks",
+      "async": false
+    }
+  ],
+  "flow": []
+}

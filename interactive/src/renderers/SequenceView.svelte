@@ -6,6 +6,7 @@
   // project's sequence looks unified.
   // ---------------------------------------------------------------------------
   import { tick } from 'svelte';
+  import { toPng } from 'html-to-image';
   import { recordGif } from '../lib/gifRecorder.js';
   import { arrowColor, resolveColors } from '../core/theme.js';
 
@@ -143,6 +144,34 @@
     }
   }
 
+  // Export the CURRENT sequence view as a static PNG (whatever is revealed).
+  // Captures the SVG at its full natural size so the image is crisp, not the
+  // downscaled on-screen version. Tip: Reset→ or step to the end first for a
+  // full still of the whole flow.
+  async function exportPng() {
+    if (recording) return;
+    stop();
+    recordMsg = 'Exporting PNG…';
+    try {
+      await tick();
+      const dataUrl = await toPng(svgEl, {
+        backgroundColor: '#ffffff',
+        width: WIDTH,
+        height: svgHeight,
+        style: { width: `${WIDTH}px`, height: `${svgHeight}px` },
+      });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${(spec.title || 'sequence').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png`;
+      a.click();
+      recordMsg = 'PNG downloaded ✓';
+    } catch (e) {
+      recordMsg = 'PNG failed: ' + e.message;
+    } finally {
+      setTimeout(() => { recordMsg = ''; }, 2500);
+    }
+  }
+
   function arrowGeom(s) {
     const x1 = actorX[s.from], x2 = actorX[s.to];
     const dir = x2 >= x1 ? 1 : -1;
@@ -169,6 +198,7 @@
     <button onclick={reset} disabled={recording}>⟲ Reset</button>
     <span class="counter">{currentStep} / {total}</span>
     <button class="rec" onclick={record} disabled={recording}>● Record GIF</button>
+    <button class="png" onclick={exportPng} disabled={recording} title="Export the current view as a static PNG">⬇ PNG</button>
     {#if recordMsg}<span class="recmsg">{recordMsg}</span>{/if}
   </div>
 
@@ -262,6 +292,8 @@
   button:hover:not(:disabled) { background: #f1f5f9; }
   .rec { border-color: #b91c1c; color: #b91c1c; }
   .rec:hover:not(:disabled) { background: #fef2f2; }
+  .png { background: #1e293b; color: #fff; border-color: #1e293b; }
+  .png:hover:not(:disabled) { background: #0f172a; }
   .counter { font-size: 0.78rem; color: #64748b; margin-left: 0.3rem; }
   .recmsg { font-size: 0.76rem; color: #7c3aed; font-weight: 600; }
   .canvas { border: 1px solid #ddd; border-radius: 8px; background: #fff; padding: 4px; }

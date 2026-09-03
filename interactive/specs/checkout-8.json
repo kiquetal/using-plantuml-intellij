@@ -1,0 +1,31 @@
+{
+  "title": "Checkout Saga (8 actors)",
+  "view": "sequence",
+  "nodes": [
+    { "id": "user", "label": "Customer", "role": "person" },
+    { "id": "gw", "label": "API Gateway", "role": "edge" },
+    { "id": "order", "label": "Order Svc", "role": "service" },
+    { "id": "inv", "label": "Inventory Svc", "role": "service" },
+    { "id": "pay", "label": "Payment Svc", "role": "service" },
+    { "id": "db", "label": "Postgres", "role": "data" },
+    { "id": "kafka", "label": "Kafka", "role": "async" },
+    { "id": "stripe", "label": "Stripe", "role": "external" }
+  ],
+  "edges": [],
+  "flow": [
+    { "from": "user", "to": "gw", "label": "POST /checkout" },
+    { "from": "gw", "to": "order", "label": "createOrder(cart)" },
+    { "from": "order", "to": "db", "label": "INSERT order (PENDING)" },
+    { "from": "order", "to": "inv", "label": "reserve(items)" },
+    { "from": "inv", "to": "db", "label": "UPDATE stock" },
+    { "from": "inv", "to": "order", "label": "reserved OK", "kind": "return" },
+    { "from": "order", "to": "pay", "label": "charge(total)" },
+    { "from": "pay", "to": "stripe", "label": "create paymentIntent" },
+    { "from": "stripe", "to": "pay", "label": "succeeded", "kind": "return" },
+    { "from": "pay", "to": "order", "label": "paymentConfirmed", "kind": "return" },
+    { "from": "order", "to": "db", "label": "UPDATE order (CONFIRMED)" },
+    { "from": "order", "to": "kafka", "label": "publish OrderConfirmed", "kind": "async" },
+    { "from": "order", "to": "gw", "label": "201 Created", "kind": "return" },
+    { "from": "gw", "to": "user", "label": "HTTP 201", "kind": "return" }
+  ]
+}

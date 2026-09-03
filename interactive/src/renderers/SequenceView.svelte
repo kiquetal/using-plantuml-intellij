@@ -30,12 +30,12 @@
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
 
   // --- Layout constants ----------------------------------------------------
-  const COL_W = 190;
-  const MARGIN_X = 110;
+  const COL_W = 150;
+  const MARGIN_X = 85;
   const HEAD_Y = 44;
-  const HEAD_H = 40;
-  const FIRST_MSG_Y = 140;
-  const ROW_H = 66;
+  const HEAD_H = 38;
+  const FIRST_MSG_Y = 130;
+  const ROW_H = 60;
 
   const WIDTH = $derived(MARGIN_X * 2 + COL_W * Math.max(actors.length - 1, 1));
   const actorX = $derived(Object.fromEntries(actors.map((a, i) => [a.id, MARGIN_X + i * COL_W])));
@@ -163,7 +163,7 @@
   </div>
 
   <div class="canvas">
-    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width={WIDTH} height={svgHeight} style="min-width:{WIDTH}px;display:block;">
+    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width="100%" height="auto" preserveAspectRatio="xMinYMin meet" style="display:block;max-width:100%;">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
@@ -173,8 +173,8 @@
       {#each actors as a}
         <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom} stroke="#cbd5e1" stroke-dasharray="4 4" />
         <g class:active={activeActors.has(a.id)}>
-          <rect x={actorX[a.id] - 75} y={HEAD_Y} width="150" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : arrowColor(a.role)} />
-          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="14" font-weight="600">{a.label}</text>
+          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : arrowColor(a.role)} />
+          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="15" font-weight="700">{a.label}</text>
         </g>
       {/each}
 
@@ -211,10 +211,10 @@
           {@const g = arrowGeom(s)}
           <g class="msg" class:current={isCurrent}>
             {#if g.self}
-              <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+              <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="14" font-weight="600" fill={c}>{s.label}</text>
               <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
             {:else}
-              <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="13" font-weight="600" fill={c}>{s.label}</text>
+              <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="14" font-weight="600" fill={c}>{s.label}</text>
               <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
             {/if}
           </g>
@@ -241,7 +241,7 @@
   .rec:hover:not(:disabled) { background: #fef2f2; }
   .counter { font-size: 0.78rem; color: #64748b; margin-left: 0.3rem; }
   .recmsg { font-size: 0.76rem; color: #7c3aed; font-weight: 600; }
-  .canvas { border: 1px solid #ddd; border-radius: 8px; background: #fff; padding: 4px; overflow-x: auto; }
+  .canvas { border: 1px solid #ddd; border-radius: 8px; background: #fff; padding: 4px; }
   .msg.current { animation: appear 0.35s ease-out; }
   @keyframes appear { from { opacity: 0; } to { opacity: 1; } }
   .caption { margin: 0.6rem 0 0; font-size: 0.85rem; padding: 0.5rem 0.7rem; border-radius: 6px; background: #f8fafc; color: #334155; }

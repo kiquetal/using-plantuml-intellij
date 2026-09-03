@@ -173,6 +173,10 @@
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
         </marker>
+        <!-- open arrowhead for async messages (->>): thin V, not filled -->
+        <marker id="arrow-open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10" fill="none" stroke="context-stroke" stroke-width="1.6" />
+        </marker>
       </defs>
 
       {#each actors as a}
@@ -227,7 +231,9 @@
               <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
             {:else}
               <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="14" font-weight="600" fill={c}>{s.label}</text>
-              <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2" stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'} marker-end="url(#arrow)" />
+              <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2"
+                    stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'}
+                    marker-end={s.kind === 'async' ? 'url(#arrow-open)' : 'url(#arrow)'} />
             {/if}
           </g>
         {/if}

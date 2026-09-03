@@ -29,6 +29,13 @@
 
   const roleById = $derived(Object.fromEntries(spec.nodes.map((n) => [n.id, n.role])));
 
+  // Color per actor: honor an explicit color from the source (.puml inline
+  // #color) when present, otherwise fall back to the semantic role color.
+  const colorById = $derived(
+    Object.fromEntries(spec.nodes.map((n) => [n.id, n.color || arrowColor(n.role)])),
+  );
+  const colorOf = (id) => colorById[id] ?? arrowColor(roleById[id]);
+
   // --- Layout constants ----------------------------------------------------
   const COL_W = 150;
   const MARGIN_X = 85;
@@ -173,7 +180,7 @@
       {#each actors as a}
         <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom} stroke="#cbd5e1" stroke-dasharray="4 4" />
         <g class:active={activeActors.has(a.id)}>
-          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : arrowColor(a.role)} />
+          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={activeActors.has(a.id) ? '#1e293b' : colorOf(a.id)} />
           <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="15" font-weight="700">{a.label}</text>
         </g>
       {/each}
@@ -207,7 +214,7 @@
             <text x={nx} y={s.y + 4} text-anchor="middle" font-size="11" fill="#7a5c00">{s.label}</text>
           </g>
         {:else}
-          {@const c = arrowColor(roleById[s.from])}
+          {@const c = colorOf(s.from)}
           {@const g = arrowGeom(s)}
           <g class="msg" class:current={isCurrent}>
             {#if g.self}

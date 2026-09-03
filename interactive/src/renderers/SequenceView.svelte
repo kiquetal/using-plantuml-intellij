@@ -46,7 +46,12 @@
   const actorX = $derived(Object.fromEntries(actors.map((a, i) => [a.id, MARGIN_X + i * COL_W])));
 
   // --- Interactive state ---------------------------------------------------
-  let currentStep = $state(0);
+  // Optional deep-link: ?step=N presets how many messages are revealed.
+  const _initStep = (() => {
+    try { return Math.max(0, parseInt(new URLSearchParams(location.search).get('step') ?? '0', 10) || 0); }
+    catch { return 0; }
+  })();
+  let currentStep = $state(_initStep);
   let playing = $state(false);
   let recording = $state(false);
   let recordMsg = $state('');

@@ -1,0 +1,30 @@
+{
+  "title": "Login with alt (auth outcome)",
+  "view": "sequence",
+  "nodes": [
+    { "id": "user", "label": "User", "role": "person" },
+    { "id": "gw", "label": "API Gateway", "role": "edge" },
+    { "id": "auth", "label": "Auth Service", "role": "service" },
+    { "id": "idp", "label": "Identity Provider", "role": "external" },
+    { "id": "session", "label": "Session Store", "role": "data" },
+    { "id": "events", "label": "Events", "role": "async" }
+  ],
+  "edges": [],
+  "flow": [
+    { "from": "user", "to": "gw", "label": "POST /login" },
+    { "from": "gw", "to": "auth", "label": "authenticate(creds)" },
+    { "from": "auth", "to": "idp", "label": "verify(credentials)" },
+    { "kind": "frame-start", "frame": "f0", "type": "alt", "label": "credentials valid" },
+    { "from": "idp", "to": "auth", "label": "OK + claims", "kind": "return" },
+    { "from": "auth", "to": "session", "label": "SET session token" },
+    { "from": "auth", "to": "events", "label": "publish UserLoggedIn", "kind": "async" },
+    { "from": "auth", "to": "gw", "label": "200 + cookie", "kind": "return" },
+    { "from": "gw", "to": "user", "label": "302 Dashboard", "kind": "return" },
+    { "kind": "frame-else", "frame": "f0", "label": "invalid credentials" },
+    { "from": "idp", "to": "auth", "label": "401 Unauthorized", "kind": "return" },
+    { "from": "auth", "to": "events", "label": "publish LoginFailed", "kind": "async" },
+    { "from": "auth", "to": "gw", "label": "401", "kind": "return" },
+    { "from": "gw", "to": "user", "label": "401 Try again", "kind": "return" },
+    { "kind": "frame-end", "frame": "f0" }
+  ]
+}

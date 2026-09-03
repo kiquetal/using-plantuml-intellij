@@ -2,7 +2,9 @@
 
 Turn a **C4-PlantUML** file from *any* project into an **interactive** diagram —
 a pan/zoom/clickable architecture graph plus an animated, step-through sequence
-you can export as PNG or **animated GIF** — all in one unified style.
+you can export as PNG or **animated GIF** — all in one unified style. You can
+also render a **sequence-only** view from a native PlantUML sequence diagram
+(see [Render ONLY a sequence](#render-only-a-sequence-no-container-graph)).
 
 This repo is the single home for the tooling. Your other project repos only own
 their `.puml` files; you point the studio at them.
@@ -78,8 +80,48 @@ That writes `specs/foo.json`. The app auto-discovers it — no code changes.
 | Flag | Meaning |
 |------|---------|
 | `--name <slug>` | output filename (default: derived from the `.puml` name) |
+| `--seq` | parse a native **PlantUML sequence** diagram → **sequence-only** view |
 | `--flow` | treat ordered `Rel()` as **sequence steps** (for C4 **Dynamic** files) |
 | `--merge <container.puml>` | take nodes/edges from a container file, flow from this one |
+
+### Render ONLY a sequence (no container graph)
+
+If you just want the animated, colored sequence — nothing else — import a
+**native PlantUML sequence diagram** with `--seq`:
+
+```bash
+# Point at any .puml sequence (participants + -> messages)
+node cli/import-c4.js ~/projects/foo/diagrams/request-flow.puml --name foo-seq --seq
+
+npm run dev            # then open ?spec=foo-seq  → sequence ONLY, no graph
+```
+
+`--seq` marks the spec `view: "sequence"`, so the app hides the container-graph
+section entirely and renders just the step-through sequence.
+
+What `--seq` parses from a real sequence file:
+
+| Source syntax | Rendered as |
+|---------------|-------------|
+| `participant "X" as x` / `actor` / `database` / `queue` | actor lifeline (colored by role) |
+| `participant "X" as x #2E86C1` | actor uses that **exact color** |
+| `box "Label" ... end box` | groups those participants |
+| `A -> B : text` | sync call — solid line, filled arrowhead |
+| `A --> B : text` | return — **dashed** line |
+| `A ->> B : text` | async — solid line, **open** arrowhead |
+| `A -> A : text` | self-call loop |
+| `alt / else / end`, `opt`, `loop` | frame box with label + divider |
+| `note over X : text` | sticky note on the canvas |
+
+Colors: an explicit `#hex` on a participant wins; otherwise the semantic role
+color is used, and **multiple same-role participants get distinct shades** so
+neighbouring services/datastores stay tellable apart.
+
+Deep-link a point in the flow with `?step=N` — e.g. `?spec=foo-seq&step=6`
+reveals the first 6 messages (handy for docs/screenshots).
+
+Try the bundled examples: `?spec=login-alt` (alt/else frame), `?spec=seq-demo`,
+`?spec=checkout-8` (8 actors).
 
 ### What the parser understands
 

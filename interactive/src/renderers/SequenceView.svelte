@@ -36,12 +36,12 @@
   const colorOf = (id) => colorById[id] ?? arrowColor(roleById[id]);
 
   // --- Layout constants ----------------------------------------------------
-  const COL_W = 150;
-  const MARGIN_X = 85;
+  const COL_W = 185;
+  const MARGIN_X = 105;
   const HEAD_Y = 44;
-  const HEAD_H = 38;
-  const FIRST_MSG_Y = 130;
-  const ROW_H = 60;
+  const HEAD_H = 46;
+  const FIRST_MSG_Y = 140;
+  const ROW_H = 62;
 
   const WIDTH = $derived(MARGIN_X * 2 + COL_W * Math.max(actors.length - 1, 1));
   const actorX = $derived(Object.fromEntries(actors.map((a, i) => [a.id, MARGIN_X + i * COL_W])));
@@ -203,7 +203,7 @@
   </div>
 
   <div class="canvas">
-    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width="100%" height="auto" preserveAspectRatio="xMinYMin meet" style="display:block;max-width:100%;">
+    <svg bind:this={svgEl} viewBox={`0 0 ${WIDTH} ${svgHeight}`} width={WIDTH} height={svgHeight} preserveAspectRatio="xMinYMin meet" style="display:block;max-width:100%;width:100%;height:auto;margin:0 auto;">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
@@ -216,16 +216,21 @@
 
       {#each actors as a}
         {@const isActive = activeActors.has(a.id)}
+        {@const lines = String(a.label).split(/\\n|\n/)}
         <line x1={actorX[a.id]} y1={HEAD_Y + HEAD_H} x2={actorX[a.id]} y2={lifelineBottom}
               stroke={isActive ? colorOf(a.id) : '#cbd5e1'} stroke-width={isActive ? 1.6 : 1} stroke-dasharray="4 4" />
         <g class:active={isActive}>
           <!-- highlight ring (non-destructive: fill stays the actor's real color) -->
           {#if isActive}
-            <rect x={actorX[a.id] - 70} y={HEAD_Y - 4} width="140" height={HEAD_H + 8} rx="11"
+            <rect x={actorX[a.id] - 85} y={HEAD_Y - 4} width="170" height={HEAD_H + 8} rx="11"
                   fill="none" stroke="#f59e0b" stroke-width="3" />
           {/if}
-          <rect x={actorX[a.id] - 66} y={HEAD_Y} width="132" height={HEAD_H} rx="8" fill={colorOf(a.id)} />
-          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5} text-anchor="middle" fill="#fff" font-size="15" font-weight="700">{a.label}</text>
+          <rect x={actorX[a.id] - 81} y={HEAD_Y} width="162" height={HEAD_H} rx="8" fill={colorOf(a.id)} />
+          <text x={actorX[a.id]} y={HEAD_Y + HEAD_H / 2 + 5 - (lines.length - 1) * 7} text-anchor="middle" fill="#fff" font-size="14" font-weight="700">
+            {#each lines as ln, li}
+              <tspan x={actorX[a.id]} dy={li === 0 ? 0 : 15}>{ln}</tspan>
+            {/each}
+          </text>
         </g>
       {/each}
 
@@ -254,7 +259,7 @@
           {@const xs = s.over.map((o) => actorX[o]).filter((v) => v != null)}
           {@const nx = (Math.min(...xs) + Math.max(...xs)) / 2}
           <g class="msg" class:current={isCurrent}>
-            <rect x={nx - 90} y={s.y - 16} width="180" height="30" rx="4" fill="#fff8dc" stroke="#d4ac0d" />
+            <rect x={nx - Math.max(120, s.label.length * 6.5 + 24) / 2} y={s.y - 16} width={Math.max(120, s.label.length * 6.5 + 24)} height="30" rx="4" fill="#fff8dc" stroke="#d4ac0d" />
             <text x={nx} y={s.y + 4} text-anchor="middle" font-size="11" fill="#7a5c00">{s.label}</text>
           </g>
         {:else}
@@ -262,10 +267,15 @@
           {@const g = arrowGeom(s)}
           <g class="msg" class:current={isCurrent}>
             {#if g.self}
-              <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="14" font-weight="600" fill={c}>{s.label}</text>
+              <text x={actorX[s.from] + 12} y={s.y - 9} text-anchor="start" font-size="12" font-weight="600" fill={c}>{s.label}</text>
               <path d={`M ${actorX[s.from]} ${s.y} h 26 v 18 h -26`} fill="none" stroke={c} stroke-width="2" marker-end="url(#arrow)" />
             {:else}
-              <text x={g.mid} y={s.y - 9} text-anchor="middle" font-size="14" font-weight="600" fill={c}>{s.label}</text>
+              {@const mlines = String(s.label).split(/\\n|\n/)}
+              <text x={g.mid} y={s.y - 9 - (mlines.length - 1) * 12} text-anchor="middle" font-size="12" font-weight="600" fill={c}>
+                {#each mlines as ml, mi}
+                  <tspan x={g.mid} dy={mi === 0 ? 0 : 12}>{ml}</tspan>
+                {/each}
+              </text>
               <line x1={g.x1} y1={s.y} x2={g.xEnd} y2={s.y} stroke={c} stroke-width="2.2"
                     stroke-dasharray={s.kind === 'return' ? '5 4' : 'none'}
                     marker-end={s.kind === 'async' ? 'url(#arrow-open)' : 'url(#arrow)'} />

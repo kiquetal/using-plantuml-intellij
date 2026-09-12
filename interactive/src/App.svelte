@@ -84,7 +84,7 @@
 </main>
 
 <style>
-  main { font-family: system-ui, sans-serif; padding: 1rem; max-width: 1000px; margin: 0 auto; }
+  main { font-family: system-ui, sans-serif; padding: 1rem; max-width: 1400px; margin: 0 auto; }
   header { margin-bottom: 1.5rem; }
   h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
   h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
